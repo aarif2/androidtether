@@ -3,18 +3,18 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>pro.aarif.awp-rndisd</string>
+    <string>com.github.aarif2.androidtether</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/sbin/awp_rndisd</string>
+        <string>/usr/local/sbin/androidtetherd</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
     <key>StandardErrorPath</key>
-    <string>/var/log/awp_rndisd.log</string>
+    <string>/var/log/androidtether.log</string>
     <key>StandardOutPath</key>
-    <string>/var/log/awp_rndisd.log</string>
+    <string>/var/log/androidtether.log</string>
 </dict>
 </plist>

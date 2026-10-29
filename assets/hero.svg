@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="t d">
+  <title id="t">androidtether</title>
+  <desc id="d">An Android phone connected by USB to a Mac, showing the feth0 network interface up.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0e16"/>
+      <stop offset="1" stop-color="#0f1726"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.82" cy="0.5" r="0.55">
+      <stop offset="0" stop-color="#22d3a6" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#22d3a6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.1" cy="0.05" r="0.5">
+      <stop offset="0" stop-color="#4f7cff" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#4f7cff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cable" gradientUnits="userSpaceOnUse" x1="886" y1="308" x2="1030" y2="308">
+      <stop offset="0" stop-color="#4f7cff"/>
+      <stop offset="1" stop-color="#22d3a6"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#glowA)"/>
+  <rect width="1280" height="640" fill="url(#glowB)"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="80" y="118" font-size="22" font-weight="600" letter-spacing="3" fill="#22d3a6">MACOS · APPLE SILICON · NO KEXT</text>
+    <text x="80" y="228" font-size="84" font-weight="800" fill="#ffffff">androidtether</text>
+    <text x="80" y="292" font-size="32" fill="#aab7cc">USB tethering for Android on macOS.</text>
+    <text x="80" y="336" font-size="32" fill="#ffffff" font-weight="600">Plug in. It just works.</text>
+  </g>
+
+  <rect x="80" y="394" width="640" height="68" rx="14" fill="#101a2b" stroke="#22d3a6" stroke-opacity="0.6" stroke-width="1.5"/>
+  <g font-family="'SF Mono', Menlo, Consolas, monospace" font-size="23">
+    <text x="108" y="437" fill="#22d3a6">$</text>
+    <text x="136" y="437" fill="#e8eefb">brew install aarif2/tap/androidtether</text>
+  </g>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="22" fill="#8fa0ba">
+    <text x="80" y="530">Auto-connects on plug-in</text>
+    <text x="80" y="566">Cleans up on unplug</text>
+  </g>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="22" fill="#8fa0ba">
+    <text x="380" y="530">Userspace RNDIS driver</text>
+    <text x="380" y="566">MIT licensed</text>
+  </g>
+
+  <g>
+    <rect x="770" y="190" width="116" height="236" rx="24" fill="#0e1524" stroke="#dbe5f7" stroke-width="3"/>
+    <rect x="780" y="214" width="96" height="176" rx="8" fill="#141e33"/>
+    <circle cx="828" cy="202" r="4" fill="#3b4a66"/>
+    <rect x="803" y="408" width="50" height="5" rx="2.5" fill="#3b4a66"/>
+    <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" fill="#dbe5f7">
+      <text x="828" y="262" font-size="13" font-weight="600" text-anchor="middle">USB tethering</text>
+    </g>
+    <rect x="808" y="278" width="40" height="22" rx="11" fill="#22d3a6"/>
+    <circle cx="837" cy="289" r="8" fill="#ffffff"/>
+    <g fill="#3b4a66">
+      <rect x="796" y="326" width="64" height="6" rx="3"/>
+      <rect x="796" y="342" width="48" height="6" rx="3"/>
+      <rect x="796" y="358" width="56" height="6" rx="3"/>
+    </g>
+  </g>
+
+  <path d="M886 308 C 940 308, 960 308, 1030 308" fill="none" stroke="url(#cable)" stroke-width="6" stroke-linecap="round"/>
+  <path d="M886 308 C 940 308, 960 308, 1030 308" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 22">
+    <animate attributeName="stroke-dashoffset" from="48" to="0" dur="1.2s" repeatCount="indefinite"/>
+  </path>
+
+  <g>
+    <rect x="1030" y="226" width="200" height="132" rx="10" fill="#0e1524" stroke="#dbe5f7" stroke-width="3"/>
+    <rect x="1040" y="236" width="180" height="112" rx="4" fill="#141e33"/>
+    <path d="M1010 358 H1250 L1236 376 H1024 Z" fill="#dbe5f7"/>
+    <g font-family="'SF Mono', Menlo, Consolas, monospace" fill="#e8eefb" font-size="15">
+      <text x="1054" y="274">feth0</text>
+      <text x="1054" y="300" fill="#8fa0ba" font-size="13">10.248.236.62</text>
+    </g>
+    <circle cx="1062" cy="326" r="6" fill="#22d3a6"/>
+    <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" fill="#22d3a6" font-size="15" font-weight="600">
+      <text x="1076" y="331">up</text>
+    </g>
+  </g>
+</svg>

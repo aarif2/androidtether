@@ -46,7 +46,7 @@ static void awp_log(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    fputs("awp_rndisd: ", stderr);
+    fputs("androidtetherd: ", stderr);
     vfprintf(stderr, fmt, ap);
     fputc('\n', stderr);
     va_end(ap);
@@ -482,7 +482,7 @@ static void awp_on_signal(int s)
 int main(void)
 {
     if (geteuid() != 0) {
-        fputs("awp_rndisd: must run as root\n", stderr);
+        fputs("androidtetherd: must run as root\n", stderr);
         return 1;
     }
     signal(SIGTERM, awp_on_signal);

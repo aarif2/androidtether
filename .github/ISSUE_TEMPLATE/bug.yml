@@ -1,0 +1,16 @@
+name: Bug report
+description: Something broke
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Output of `tail -50 /var/log/androidtether.log`
+      render: shell

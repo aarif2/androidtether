@@ -14,6 +14,8 @@
 #include <sys/time.h>
 #include <net/if.h>
 #include <net/bpf.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
 
 #define AWP_HOST_XFER 16384
 #define AWP_RX_BUF 65536
@@ -377,6 +379,47 @@ static void awp_unlink(awp_dev *d)
     pthread_mutex_unlock(&awp_lock);
 }
 
+static int awp_healthy(const char *name)
+{
+    struct ifaddrs *ifa, *p;
+    int up = 0, has4 = 0;
+    if (getifaddrs(&ifa) != 0)
+        return 1;
+    for (p = ifa; p; p = p->ifa_next) {
+        if (strcmp(p->ifa_name, name) != 0)
+            continue;
+        if (p->ifa_flags & IFF_UP)
+            up = 1;
+        if (p->ifa_addr && p->ifa_addr->sa_family == AF_INET) {
+            struct sockaddr_in *sin = (struct sockaddr_in *)p->ifa_addr;
+            if ((ntohl(sin->sin_addr.s_addr) >> 16) != 0xA9FE)
+                has4 = 1;
+        }
+    }
+    freeifaddrs(ifa);
+    return up && has4;
+}
+
+static void awp_supervise(awp_dev *d)
+{
+    int bad = 0;
+    while (d->awp_alive && !awp_quit) {
+        sleep(2);
+        if (awp_healthy(d->awp_eth)) {
+            bad = 0;
+            continue;
+        }
+        if (++bad < 2)
+            continue;
+        awp_log("%s lost its address, restoring", d->awp_eth);
+        awp_run("/sbin/ifconfig %s up", d->awp_eth);
+        awp_run("/sbin/ifconfig %s up", d->awp_peer);
+        awp_run("/usr/sbin/ipconfig set %s DHCP", d->awp_eth);
+        bad = 0;
+        sleep(5);
+    }
+}
+
 static void *awp_session(void *arg)
 {
     awp_dev *d = arg;
@@ -411,6 +454,8 @@ static void *awp_session(void *arg)
         have_ctl = 1;
     }
     awp_run("/usr/sbin/ipconfig set %s DHCP", d->awp_eth);
+    awp_supervise(d);
+    d->awp_alive = 0;
     pthread_join(t_rx, NULL);
     pthread_join(t_tx, NULL);
     if (have_ctl)

@@ -162,7 +162,9 @@ static int awp_xchg(awp_dev *d, uint8_t *msg, uint8_t *resp, int rmax)
 static int awp_rndis_init(awp_dev *d)
 {
     uint8_t msg[32], resp[AWP_CTL_BUF];
+    uint32_t mofs;
     int r;
+
     memset(msg, 0, sizeof msg);
     awp_wr(msg, 2);
     awp_wr(msg + 4, 24);
@@ -186,7 +188,12 @@ static int awp_rndis_init(awp_dev *d)
         awp_log("mac query failed");
         return -1;
     }
-    memcpy(d->awp_mac, resp + 8 + awp_rd(resp + 20), 6);
+    mofs = awp_rd(resp + 20);
+    if (mofs > (uint32_t)r || 8 + mofs + 6 > (uint32_t)r) {
+        awp_log("mac query offset out of bounds");
+        return -1;
+    }
+    memcpy(d->awp_mac, resp + 8 + mofs, 6);
 
     memset(msg, 0, sizeof msg);
     awp_wr(msg, 5);
@@ -245,8 +252,6 @@ static int awp_feth_create(awp_dev *d)
     if (awp_run("/sbin/ifconfig %s create >/dev/null 2>&1", a) ||
         awp_run("/sbin/ifconfig %s create >/dev/null 2>&1", b) ||
         awp_run("/sbin/ifconfig %s peer %s >/dev/null 2>&1", a, b) ||
-        awp_run("/sbin/ifconfig %s lladdr %02x:%02x:%02x:%02x:%02x:%02x >/dev/null 2>&1", a,
-                d->awp_mac[0], d->awp_mac[1], d->awp_mac[2], d->awp_mac[3], d->awp_mac[4], d->awp_mac[5]) ||
         awp_run("/sbin/ifconfig %s up", a) || awp_run("/sbin/ifconfig %s up", b))
         return -1;
     return 0;
@@ -289,15 +294,20 @@ static void *awp_rx_thread(void *arg)
 {
     awp_dev *d = arg;
     uint8_t *b = malloc(AWP_RX_BUF);
-    int n, r;
+    int n, r, err_log = 0, drop_log = 0;
     uint32_t off, len, dofs, dlen;
     while (d->awp_alive && !awp_quit) {
         n = 0;
         r = libusb_bulk_transfer(d->awp_h, d->awp_ep_in, b, AWP_RX_BUF, &n, 1000);
         if (r != 0 && r != LIBUSB_ERROR_TIMEOUT) {
             if (awp_dead(r)) {
+                awp_log("%s rx fatal usb error: %s", d->awp_eth, libusb_strerror(r));
                 d->awp_alive = 0;
                 break;
+            }
+            if (err_log < 5) {
+                awp_log("%s rx usb error: %s", d->awp_eth, libusb_strerror(r));
+                err_log++;
             }
             usleep(100000);
             continue;
@@ -305,16 +315,29 @@ static void *awp_rx_thread(void *arg)
         off = 0;
         while (off + 8 <= (uint32_t)n) {
             len = awp_rd(b + off + 4);
-            if (len < 8 || off + len > (uint32_t)n)
+            if (len < 8 || off + len > (uint32_t)n) {
+                if (drop_log < 5) {
+                    awp_log("%s rx dropped malformed rndis frame (off=%u len=%u n=%d)",
+                            d->awp_eth, off, len, n);
+                    drop_log++;
+                }
                 break;
+            }
             if (awp_rd(b + off) == 1 && len >= AWP_HDR) {
                 dofs = awp_rd(b + off + 8);
                 dlen = awp_rd(b + off + 12);
-                if (dlen && 8 + dofs + dlen <= len)
-                    if (write(d->awp_bpf, b + off + 8 + dofs, dlen) < 0 && errno == ENXIO) {
-                        d->awp_alive = 0;
-                        break;
+                if (dlen && 8 + dofs + dlen <= len) {
+                    if (write(d->awp_bpf, b + off + 8 + dofs, dlen) < 0) {
+                        if (errno == ENXIO) {
+                            d->awp_alive = 0;
+                            break;
+                        }
+                        if (drop_log < 5) {
+                            awp_log("%s rx bpf write failed: %s", d->awp_eth, strerror(errno));
+                            drop_log++;
+                        }
                     }
+                }
             }
             off += len;
         }
@@ -329,7 +352,7 @@ static void *awp_tx_thread(void *arg)
     unsigned bl = 0;
     uint8_t *buf, *out, *p;
     ssize_t n;
-    int sent, r;
+    int sent, r, err_log = 0;
     struct bpf_hdr *h;
     uint32_t len, total;
     ioctl(d->awp_bpf, BIOCGBLEN, &bl);
@@ -356,6 +379,10 @@ static void *awp_tx_thread(void *arg)
             r = libusb_bulk_transfer(d->awp_h, d->awp_ep_out, out, total, &sent, 2000);
             if (r == 0 && d->awp_out_mps && total % d->awp_out_mps == 0)
                 libusb_bulk_transfer(d->awp_h, d->awp_ep_out, out, 0, &sent, 1000);
+            if (r != 0 && err_log < 5) {
+                awp_log("%s tx usb error: %s", d->awp_eth, libusb_strerror(r));
+                err_log++;
+            }
             if (awp_dead(r)) {
                 d->awp_alive = 0;
                 break;
@@ -402,29 +429,44 @@ static int awp_healthy(const char *name)
 
 static void awp_supervise(awp_dev *d)
 {
-    int bad = 0;
+    int bad = 0, grace = 8;
     while (d->awp_alive && !awp_quit) {
-        sleep(2);
+        sleep(1);
+        if (!d->awp_alive || awp_quit)
+            break;
         if (awp_healthy(d->awp_eth)) {
             bad = 0;
+            grace = 4;
             continue;
         }
-        if (++bad < 2)
+        if (++bad < grace)
             continue;
         awp_log("%s lost its address, restoring", d->awp_eth);
         awp_run("/sbin/ifconfig %s up", d->awp_eth);
         awp_run("/sbin/ifconfig %s up", d->awp_peer);
         awp_run("/usr/sbin/ipconfig set %s DHCP", d->awp_eth);
         bad = 0;
-        sleep(5);
+        grace = 10;
     }
+}
+
+static int awp_claim_retry(libusb_device_handle *h, int iface)
+{
+    int i, r = -1;
+    for (i = 0; i < 5 && !awp_quit; i++) {
+        r = libusb_claim_interface(h, iface);
+        if (r == 0)
+            return 0;
+        usleep(150000);
+    }
+    return r;
 }
 
 static void *awp_session(void *arg)
 {
     awp_dev *d = arg;
     pthread_t t_ctl, t_rx, t_tx;
-    int have_ctl = 0, claimed_c = 0, claimed_d = 0;
+    int have_ctl = 0, claimed_c = 0, claimed_d = 0, up = 0;
     struct libusb_device_descriptor dd;
     d->awp_bpf = -1;
     libusb_get_device_descriptor(d->awp_usb, &dd);
@@ -432,8 +474,12 @@ static void *awp_session(void *arg)
         awp_log("open %04x:%04x failed", dd.idVendor, dd.idProduct);
         goto out;
     }
-    if (libusb_claim_interface(d->awp_h, d->awp_ctl_if) != 0 ||
-        (claimed_c = 1, libusb_claim_interface(d->awp_h, d->awp_data_if) != 0)) {
+    if (awp_claim_retry(d->awp_h, d->awp_ctl_if) != 0) {
+        awp_log("claim %04x:%04x failed", dd.idVendor, dd.idProduct);
+        goto out;
+    }
+    claimed_c = 1;
+    if (awp_claim_retry(d->awp_h, d->awp_data_if) != 0) {
         awp_log("claim %04x:%04x failed", dd.idVendor, dd.idProduct);
         goto out;
     }
@@ -444,6 +490,7 @@ static void *awp_session(void *arg)
         awp_log("interface setup failed");
         goto out;
     }
+    up = 1;
     d->awp_alive = 1;
     awp_log("%04x:%04x up as %s (mac %02x:%02x:%02x:%02x:%02x:%02x)", dd.idVendor, dd.idProduct, d->awp_eth,
             d->awp_mac[0], d->awp_mac[1], d->awp_mac[2], d->awp_mac[3], d->awp_mac[4], d->awp_mac[5]);
@@ -472,8 +519,8 @@ out:
             libusb_release_interface(d->awp_h, d->awp_ctl_if);
         libusb_close(d->awp_h);
     }
-    if (!awp_quit)
-        sleep(5);
+    for (int i = 0; i < (up ? 2 : 1) && !awp_quit; i++)
+        sleep(1);
     awp_unlink(d);
     libusb_unref_device(d->awp_usb);
     free(d);

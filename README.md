@@ -85,9 +85,9 @@ flowchart LR
     F --> M["macOS network stack<br/>DHCP, routing"]
 ```
 
-1. The service checks USB every 2 seconds for an RNDIS interface.
-2. On a match it does the RNDIS handshake and reads the phone's MAC address.
-3. It creates a `feth` virtual Ethernet pair and bridges frames between the phone and the pair.
+1. The service checks USB every 2 seconds for an RNDIS interface (retrying briefly if macOS's `AppleUserECM` probes it on connect).
+2. On a match it does the RNDIS handshake and enables packet filtering.
+3. It creates a `feth` virtual Ethernet pair (keeping its kernel-assigned MAC so macOS `configd` never caches a stale MAC during DHCP) and bridges frames between the phone and the pair.
 4. It runs DHCP on the interface, so macOS gets an address and gateway from the phone.
 5. On unplug or tethering off, it removes the interface.
 
@@ -96,9 +96,10 @@ flowchart LR
 | Phone | macOS | Status |
 | --- | --- | --- |
 | Samsung (USB ID `04e8:6864`) | macOS 27, Apple Silicon | Works |
+| MediaTek / FIG-F52 (USB ID `0e8d:2004`) | macOS, Intel | Works |
 | Your phone | | [Report it](https://github.com/aarif2/androidtether/issues/new?template=phone-report.yml) |
 
-Only RNDIS phones need this. Phones that offer CDC-NCM or CDC-ECM work on macOS natively. Intel Macs should work but are untested.
+Only RNDIS phones need this. Phones that offer CDC-NCM or CDC-ECM work on macOS natively.
 
 ## Compared to the alternatives
 
